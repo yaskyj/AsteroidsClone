@@ -1,0 +1,294 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+	<title>This is an Asteroids Clone</title>
+	<script type="text/javascript" src="js/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+//Note: Assets taken from http://gamemechanicexplorer.com/
+//Note: Code for ship and shooting taken from http://examples.phaser.io/_site/view_full.html?d=arcade%20physics&f=asteroids+movement.js&t=asteroids%20movement
+
+
+var game = new Phaser.Game(800, 600, Phaser.CANVAS, '', { preload: preload, create: create, update: update, render: render });
+
+function render()
+{
+	game.debug.body(ship);
+	rockets.forEachAlive(renderGroup, rocket);
+	bullets.forEachAlive(renderGroup, bullet);
+}
+
+function renderGroup (member)
+{
+	game.debug.body(member);
+}
+
+function preload() {
+	//loading ship spritesheet
+	game.load.spritesheet('ship', 'assets/ship.png', 32, 32);
+
+	//loading bullet image
+	game.load.image('bullet', 'assets/bullet.png');
+	
+	//loading rocket image
+	game.load.image('rocket', 'assets/rocket.png');
+
+	game.load.spritesheet('explosion', 'assets/explosion.png', 128, 128);
+}
+
+//setting variables
+var ship;
+var cursors;
+var dead = false;
+
+var bullet;
+var bullets;
+var bulletTime = 0;
+
+var rocket;
+var rockets;
+var rocketTime = 0;
+
+var explosions;
+
+var score = 0;
+var scoreString = '';
+var scoreText;
+
+function create() {
+	//initiate arcade physics
+	game.physics.startSystem(Phaser.Physics.ARCADE);
+
+	//Set background color
+	game.stage.backgroundColor = 0x333333;
+
+	//add explosions group
+	explosions = game.add.group();
+	explosions.createMultiple(30, 'explosion');
+	explosions.forEach(setupExplosion, this);
+
+	//add enemy rockets group
+	rockets = game.add.group();
+	rockets.enableBody = true;
+	rockets.physicsBodyType = Phaser.Physics.ARCADE;
+	
+	//Create enemy rockets
+	rockets.createMultiple(30, 'rocket');
+	rockets.setAll('anchor.x', 0.5);
+	rockets.setAll('anchor.y', 0.5);
+	rockets.setAll('body.width', 20);
+	rockets.setAll('body.height', 20);
+
+	//add bullet group
+	bullets = game.add.group();
+	bullets.enableBody = true;
+	bullets.physicsBodyType = Phaser.Physics.ARCADE;
+
+
+	//Create bullets
+	bullets.createMultiple(40, 'bullet');
+	bullets.setAll('anchor.x', 0.5);
+	bullets.setAll('anchor.y', 0.5);
+	bullets.setAll('scale.x', 0.25);
+	bullets.setAll('scale.y', 0.25);
+	bullets.setAll('body.width', 8);
+	bullets.setAll('body.height', 8);
+	
+	//adding the ship
+	ship = game.add.sprite(game.world.width/2, game.world.height/2, 'ship');
+	ship.anchor.set(0.5);
+	ship.angle = -90;
+
+	//enable physics on the ship
+	game.physics.enable(ship, Phaser.Physics.ARCADE);
+	ship.body.width = 25;
+	ship.body.height = 20;
+	ship.body.drag.set(100);
+	ship.body.maxVelocity.set(200);
+	
+	//setting keyboard inputs
+	cursors = game.input.keyboard.createCursorKeys();
+	game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+
+	//score text
+	scoreString = 'Score: ';
+	scoreText = game.add.text(10, 10, scoreString + score, {font: '34px Arial', fill: '#fff'});
+}
+
+function update() {
+	//adding acceleration using the up key and changing sprites
+	if (cursors.up.isDown) 
+	{
+		game.physics.arcade.accelerationFromRotation(ship.rotation, 200, ship.body.acceleration);
+		ship.frame = 1;
+	}
+	else 
+	{
+		ship.body.acceleration.set(0);
+		ship.frame = 0;
+	}
+
+	//rotation based on left and right keys
+	if (cursors.left.isDown) 
+	{
+		ship.body.angularVelocity = -300;
+	}
+	else if (cursors.right.isDown) 
+	{
+		ship.body.angularVelocity = 300;
+	}
+	else 
+	{
+		ship.body.angularVelocity = 0;
+	}
+
+	if (game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR) && dead === false)
+	{
+		fireBullet();
+	}
+	
+	screenWrap(ship);
+	
+	bullets.forEachExists(screenWrap, this);
+	
+	rockets.forEachExists(screenWrap, this);
+	
+	if (game.time.now > rocketTime) 
+	{
+		launchRocket();
+	}
+
+	//Run collisions
+	game.physics.arcade.overlap(bullets, rockets, destroyRocket, null, this);
+	game.physics.arcade.overlap(rockets, ship, destroyShip, null, this);
+
+}
+
+function destroyShip (rocket, ship)
+{
+	rocket.kill();
+	ship.kill();
+	dead = true;
+	
+	var explosion = explosions.getFirstExists(false);
+	explosion.reset(ship.body.x, ship.body.y);
+	explosion.angle = game.rnd.integerInRange(0, 360);
+	explosion.play('explosion', 60, false, true);
+}
+
+function shipExplosion (ship)
+{
+	ship.anchor.x = 0.5;
+	ship.anchor.y = 0.5;
+	ship.animations.add('explosion', [0,1,2,3], 60, false);
+}
+
+function setupExplosion (rocket)
+{
+	rocket.anchor.x = 0.5;
+	rocket.anchor.y = 0.5;
+	rocket.animations.add('explosion', [0,1,2,3], 60, false);
+}
+
+function destroyRocket (bullet, rocket)
+{
+	rocket.kill();
+	bullet.kill();
+	
+	var explosion = explosions.getFirstExists(false);
+	explosion.reset(rocket.body.x, rocket.body.y);
+	explosion.angle = game.rnd.integerInRange(0, 360);
+	explosion.play('explosion', 60, false, true);
+	
+	//update score
+	score += 20;
+	scoreText.text = scoreString + score;
+}
+
+function launchRocket ()
+{
+		rocket = rockets.getFirstExists(false);
+
+	if (rocket)
+		{
+		    var randomNumber = game.rnd.integerInRange(0, 3);
+	
+		    if (randomNumber === 0)
+		    {
+	            x = game.rnd.integerInRange(0, game.world.width);
+	            y = -rocket.height;
+	        }
+	        else if (randomNumber === 1)
+	        {
+	            x = game.rnd.integerInRange(0, game.world.width);
+	            y = game.world.height + rocket.height;
+	        }
+	        else if (randomNumber === 2)
+	        {
+	            x = -rocket.width;
+	            y = game.rnd.integerInRange(0, game.world.height);
+	        }
+	        else
+	        {
+	            x = game.world.width + rocket.width;
+	            y = game.rnd.integerInRange(0, game.world.height);
+	        }	
+	
+	        rocket.reset(x, y);
+	        rocket.rotation = game.rnd.integerInRange(0, 360);
+	        game.physics.arcade.velocityFromRotation(rocket.rotation, game.rnd.integerInRange(200, 400), rocket.body.velocity);
+			rocketTime = game.time.now + 500; 
+	}
+}
+
+function fireBullet()
+{
+	if (game.time.now > bulletTime)
+	{
+		bullet = bullets.getFirstExists(false);
+
+		if (bullet)
+		{
+			bullet.reset(ship.body.x + 16, ship.body.y + 16);
+			bullet.lifespan = 2000;
+			bullet.rotation = ship.rotation;
+			game.physics.arcade.velocityFromRotation(ship.rotation, 400, bullet.body.velocity);
+			bulletTime = game.time.now + 50;
+		}
+	}
+}
+
+function screenWrap (sprite)
+{
+	if (sprite.x < 0)
+	{
+		sprite.x = game.width;
+	}
+	else if (sprite.x > game.width)
+	{
+		sprite.x = 0;
+	}
+	
+	if (sprite.y < 0)
+	{
+		sprite.y = game.height;
+	}
+	else if (sprite.y > game.height)
+	{
+		sprite.y = 0;
+	}
+}
+
+</script>
+<p><b>Controls:</b> <b>Space Bar</b> = shoot; <b>Left Cursor</b> = Rotate Left; <b>Right Cursor</b> = Rotate Right; <b>Up Cursor</b> = Move Forward</b></p>	
+</body>
+</html>
