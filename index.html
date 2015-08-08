@@ -8,6 +8,15 @@
         body {
             margin: 0;
         }
+
+        canvas {
+        	display: block;
+        	margin: auto;
+        }
+
+        .instructions {
+        	text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -22,9 +31,9 @@ var game = new Phaser.Game(800, 600, Phaser.CANVAS, '', { preload: preload, crea
 
 function render()
 {
-	game.debug.body(ship);
-	rockets.forEachAlive(renderGroup, rocket);
-	bullets.forEachAlive(renderGroup, bullet);
+	// game.debug.body(ship);
+	// rockets.forEachAlive(renderGroup, rocket);
+	// bullets.forEachAlive(renderGroup, bullet);
 }
 
 function renderGroup (member)
@@ -289,6 +298,9 @@ function screenWrap (sprite)
 }
 
 </script>
-<p><b>Controls:</b> <b>Space Bar</b> = shoot; <b>Left Cursor</b> = Rotate Left; <b>Right Cursor</b> = Rotate Right; <b>Up Cursor</b> = Move Forward</b></p>	
+<div class="instructions">
+	<p><b>Controls:</b> <b>Space Bar</b> = shoot; <b>Left Cursor</b> = Rotate Left; <b>Right Cursor</b> = Rotate Right; <b>Up Cursor</b> = Move Forward</b>
+	</p>
+</div>
 </body>
 </html>
